@@ -1,16 +1,37 @@
 {
   "name": "audio-guide",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "Multi-tour web audio guide with time-limited sessions and session-bound audio links",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.9"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
-    "test": "node --test test/*.test.js",
-    "new-tour": "node scripts/new-tour.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource-variable/noto-sans-thai": "^5.3.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.60.0",
+    "next": "^16.4.2",
+    "qrcode": "^1.5.4",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/leaflet": "^1.9.22",
+    "@types/node": "^22.20.5",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "5.9",
+    "vitest": "^5.0.5"
   }
 }

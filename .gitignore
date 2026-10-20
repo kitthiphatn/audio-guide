@@ -1,8 +1,11 @@
 node_modules/
+.next/
+next-env.d.ts
+*.tsbuildinfo
 data/
 .env
 *.log
-# Your recordings stay out of git unless you remove this line
+# Your recordings stay out of git unless you remove these lines
 tours/*/audio/**/*.mp3
 tours/*/audio/**/*.m4a
 tours/*/audio/**/*.wav

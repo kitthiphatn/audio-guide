@@ -1,0 +1,333 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/noto-sans-thai/index.css';
+@import 'leaflet/dist/leaflet.css';
+
+/*
+ * One quiet, product-grade system for both surfaces.
+ * Neutral greys, one blue accent (a tour can set its own), large radii, frosted glass
+ * for anything that floats, and tight, heavy display type. Light follows the system;
+ * the visitor player can also be switched by hand.
+ */
+@theme {
+  --font-sans: 'Inter Variable', 'Noto Sans Thai Variable', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: var(--font-sans);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* inline: utilities read var(--ink) etc. directly, so each surface's values apply. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-mark: var(--accent);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+  --color-glass: var(--glass);
+}
+
+.theme-guide,
+.theme-admin {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --raised: #fbfbfd;
+  --ink: #1d1d1f;
+  --muted: #6e6e73;
+  --line: rgb(0 0 0 / 0.08);
+  --accent: #0071e3;
+  --accent-ink: #ffffff;
+  --ok: #248a3d;
+  --danger: #d70015;
+  --glass: rgb(255 255 255 / 0.72);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.08);
+  --shadow-float: 0 20px 50px -12px rgb(0 0 0 / 0.25), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-admin,
+  .theme-guide:not([data-theme='light']) {
+    --bg: #000000;
+    --surface: #1c1c1e;
+    --raised: #2c2c2e;
+    --ink: #f5f5f7;
+    --muted: #8e8e93;
+    --line: rgb(255 255 255 / 0.1);
+    --accent: #2997ff;
+    --accent-ink: #ffffff;
+    --ok: #30d158;
+    --danger: #ff453a;
+    --glass: rgb(28 28 30 / 0.72);
+    --shadow-card: 0 0 0 0.5px rgb(255 255 255 / 0.06);
+    --shadow-float: 0 24px 60px -12px rgb(0 0 0 / 0.7), 0 0 0 0.5px rgb(255 255 255 / 0.1);
+    color-scheme: dark;
+  }
+}
+.theme-guide[data-theme='dark'] {
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --raised: #2c2c2e;
+  --ink: #f5f5f7;
+  --muted: #8e8e93;
+  --line: rgb(255 255 255 / 0.1);
+  --accent: #2997ff;
+  --accent-ink: #ffffff;
+  --ok: #30d158;
+  --danger: #ff453a;
+  --glass: rgb(28 28 30 / 0.72);
+  --shadow-card: 0 0 0 0.5px rgb(255 255 255 / 0.06);
+  --shadow-float: 0 24px 60px -12px rgb(0 0 0 / 0.7), 0 0 0 0.5px rgb(255 255 255 / 0.1);
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    letter-spacing: -0.011em;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 28%, transparent);
+  }
+  :focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
+    outline-offset: 2px;
+    border-radius: 10px;
+  }
+  input,
+  textarea,
+  select {
+    caret-color: var(--accent);
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  * {
+    scrollbar-color: color-mix(in oklab, var(--ink) 22%, transparent) transparent;
+  }
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* Shared controls. Declared as utilities so size utilities like px-2.5 can override them. */
+@utility card {
+  border-radius: 1.25rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+@utility glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+}
+@utility field {
+  @apply w-full rounded-xl border border-transparent bg-ink/[0.05] px-3.5 py-2.5 text-base text-ink md:text-[15px] placeholder:text-muted/70 transition-[background,border-color,box-shadow] duration-200 focus:border-accent focus:bg-surface focus:shadow-[0_0_0_4px_color-mix(in_oklab,var(--accent)_18%,transparent)] focus:outline-none;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full bg-ink/[0.06] px-4 py-2 text-sm font-medium text-ink transition-[background,transform,opacity] duration-200 select-none hover:bg-ink/[0.1] active:scale-[0.97] disabled:pointer-events-none disabled:opacity-40;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-accent-ink hover:bg-accent hover:brightness-110;
+}
+@utility btn-danger {
+  @apply btn bg-danger/10 text-danger hover:bg-danger/15;
+}
+@utility label {
+  @apply mb-1.5 block text-[13px] font-medium text-muted;
+}
+
+/* Admin tables turn into one card per row on phones (see Table in components/admin/ui.tsx). */
+@media (max-width: 767.98px) {
+  .rtable table,
+  .rtable tbody {
+    display: block;
+  }
+  .rtable thead {
+    display: none;
+  }
+  .rtable tbody {
+    display: grid;
+    gap: 12px;
+  }
+  .rtable tbody > tr {
+    display: grid;
+    gap: 8px;
+    padding: 16px 18px;
+    border-radius: 1.25rem;
+    background: var(--surface);
+    box-shadow: var(--shadow-card);
+  }
+  .rtable td {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 0 !important;
+    font-size: 15px;
+    text-align: right;
+  }
+  .rtable td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 13px;
+    text-align: left;
+    flex-shrink: 0;
+  }
+  .rtable td:first-child {
+    display: block;
+    text-align: left;
+    font-size: 17px;
+    padding-bottom: 6px !important;
+    margin-bottom: 2px;
+    border-bottom: 1px solid var(--line);
+  }
+  .rtable td:first-child::before,
+  .rtable td[data-label='']::before {
+    display: none;
+  }
+  .rtable td:last-child:not(:first-child) {
+    padding-top: 6px !important;
+  }
+  .rtable td:last-child > div {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .rtable td:empty {
+    display: none;
+  }
+}
+
+/* Audio scrubber: a thin line that grows when touched, filled up to --pct. */
+.scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  --track: 4px;
+}
+.scrubber:active {
+  --track: 8px;
+}
+.scrubber::-webkit-slider-runnable-track {
+  height: var(--track);
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--ink) var(--pct, 0%), color-mix(in oklab, var(--ink) 16%, transparent) var(--pct, 0%));
+  transition: height 0.2s var(--ease-spring);
+}
+.scrubber::-moz-range-track {
+  height: var(--track);
+  border-radius: 99px;
+  background: linear-gradient(to right, var(--ink) var(--pct, 0%), color-mix(in oklab, var(--ink) 16%, transparent) var(--pct, 0%));
+}
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 0;
+  height: 0;
+}
+.scrubber::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--raised);
+}
+.leaflet-tooltip.stop-label {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: var(--ink);
+  border: 0;
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+  font-weight: 600;
+  padding: 4px 10px;
+}
+.leaflet-tooltip.stop-label::before {
+  display: none;
+}
+.leaflet-bar {
+  border: 0 !important;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: var(--shadow-float) !important;
+}
+.leaflet-bar a {
+  background: var(--glass) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes bar {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.animate-rise {
+  animation: rise 0.7s var(--ease-out-expo) both;
+}
+.animate-bar {
+  animation: bar 0.9s ease-in-out infinite;
+  transform-origin: bottom;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body,
+  .theme-admin {
+    background: #fff !important;
+  }
+  .print-sheet {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6mm !important;
+  }
+  .print-sheet article {
+    border: 1px dashed #999 !important;
+    box-shadow: none !important;
+  }
+}
