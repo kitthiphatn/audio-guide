@@ -166,3 +166,21 @@ test('admin stats count sessions and need the admin key', async () => {
   assert.ok(stats['open-tour'].total >= 1);
   assert.ok(stats['open-tour'].plays >= 1);
 });
+
+test('a stop whose audio file is missing reports missing_audio', async () => {
+  const cookie = await openSession();
+  const file = path.join(tmp, 'tours', 'open-tour', 'audio', 'th', '02.mp3');
+  fs.renameSync(file, file + '.bak');
+  try {
+    const res = await play(cookie, 1);
+    assert.equal(res.status, 404);
+    assert.equal((await res.json()).error, 'missing_audio');
+  } finally {
+    fs.renameSync(file + '.bak', file);
+  }
+});
+
+test('pages send a Referer-friendly policy so map tiles load', async () => {
+  const res = await fetch(`${base}/t/open-tour`);
+  assert.equal(res.headers.get('referrer-policy'), 'strict-origin-when-cross-origin');
+});

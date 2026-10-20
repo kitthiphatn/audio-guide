@@ -165,6 +165,7 @@
     });
     if (res.status === 401) return expire((await res.json()).redirect);
     if (res.status === 429) throw new Error(t('tooFast'));
+    if (res.status === 404) throw new Error(t('noAudio'));
     if (!res.ok) throw new Error(t('playError'));
     return (await res.json()).url;
   }
@@ -172,6 +173,7 @@
   async function playStop(i, autoplay, resumeAt = null) {
     const stop = tour.stops[i];
     if (!stop) return;
+    if (resumeAt === null) retried = false;
     current = i;
     showMessage('');
     renderPlaylist();
@@ -189,7 +191,7 @@
       audio.addEventListener('loadedmetadata', () => {
         if (start > 0 && start < audio.duration - 5) audio.currentTime = start;
       }, { once: true });
-      if (autoplay) await audio.play();
+      if (autoplay) await audio.play().catch(() => {});
       setMediaSession(stop);
     } catch (err) {
       showMessage(err.message || t('playError'));
@@ -197,15 +199,15 @@
     store.set(`${posKey}:last`, String(i));
   }
 
-  // The signed link is short-lived; when it lapses mid-track, fetch a new one and carry on.
-  let recovering = false;
-  audio.addEventListener('error', async () => {
-    if (recovering || current < 0 || !audio.src) return;
-    recovering = true;
+  // The signed link is short-lived; when it lapses mid-track, fetch a new one once and carry on.
+  let retried = false;
+  audio.addEventListener('playing', () => (retried = false));
+  audio.addEventListener('error', () => {
+    if (current < 0 || !audio.getAttribute('src')) return;
+    if (retried) return showMessage(t('playError'));
+    retried = true;
     const at = audio.currentTime;
-    const wasPlaying = !audio.paused || at > 0;
-    await playStop(current, wasPlaying, at);
-    recovering = false;
+    playStop(current, !audio.paused || at > 0, at);
   });
 
   audio.addEventListener('timeupdate', () => {

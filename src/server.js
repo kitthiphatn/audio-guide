@@ -132,6 +132,9 @@ export function createApp(config = loadConfig()) {
         if (!Number.isInteger(stopIndex) || !tour.stops[stopIndex]?.audio[lang]) {
           return json(res, 400, { error: 'unknown_track' });
         }
+        if (!fs.existsSync(tour.stops[stopIndex].audio[lang])) {
+          return json(res, 404, { error: 'missing_audio' });
+        }
         const count = store.recordFetch(session, `${stopIndex}:${lang}`);
         if (count > tour.access.maxTracksPerMinute) {
           store.log('rate_limited', { slug: tour.slug, sid: session.sid, ip: meta.ip });
@@ -167,7 +170,8 @@ export function createApp(config = loadConfig()) {
   const server = http.createServer((req, res) => {
     res.setHeader('Content-Security-Policy', CSP);
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Referrer-Policy', 'same-origin');
+    // OpenStreetMap refuses tile requests that carry no Referer.
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
     handle(req, res).catch((err) => {
       console.error(err);
       if (!res.headersSent) send(res, 500, 'Server error');
