@@ -38,7 +38,8 @@ before(async () => {
     toursDir: path.join(tmp, 'tours'),
     dataDir: path.join(tmp, 'data'),
     publicDir: path.resolve('public'),
-    adminKey: 'admin',
+    adminPassword: 'pw',
+    maxUploadBytes: 1024 * 1024,
     mediaLinkSeconds: 60,
     trustProxy: false,
   };
@@ -144,27 +145,19 @@ test('an expired session redirects and stops audio', async () => {
   assert.equal((await fetch(base + url, { headers: { cookie } })).status, 401);
 });
 
-test('code tours need a valid code and limit devices per code', async () => {
+test('code tours need a valid pass and limit devices per pass', async () => {
   const page = await fetch(`${base}/t/code-tour`);
   assert.match(await page.text(), /name="code"/);
   assert.equal((await fetch(`${base}/t/code-tour?code=NOPE`)).status, 403);
 
-  const [code] = app.store.createCodes('code-tour', 1, { devices: 1 });
-  const first = await fetch(`${base}/t/code-tour?code=${code}`, { redirect: 'manual' });
+  const pass = app.store.createPass({ slug: 'code-tour', minutes: 30, devices: 1 });
+  const first = await fetch(`${base}/t/code-tour?code=${pass.code}`, { redirect: 'manual' });
   assert.equal(first.status, 302);
   const cookie = cookieOf(first);
   assert.equal((await fetch(`${base}/t/code-tour`, { headers: { cookie } })).status, 200);
 
-  const second = await fetch(`${base}/t/code-tour?code=${code}`, { redirect: 'manual' });
+  const second = await fetch(`${base}/t/code-tour?code=${pass.code}`, { redirect: 'manual' });
   assert.equal(second.status, 403, 'second device is refused');
-});
-
-test('admin stats count sessions and need the admin key', async () => {
-  assert.equal((await fetch(`${base}/admin/stats`)).status, 403);
-  const res = await fetch(`${base}/admin/stats`, { headers: { 'x-admin-key': 'admin' } });
-  const stats = await res.json();
-  assert.ok(stats['open-tour'].total >= 1);
-  assert.ok(stats['open-tour'].plays >= 1);
 });
 
 test('a stop whose audio file is missing reports missing_audio', async () => {

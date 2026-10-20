@@ -11,7 +11,6 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test test/*.test.js",
-    "new-tour": "node scripts/new-tour.js",
-    "codes": "node scripts/codes.js"
+    "new-tour": "node scripts/new-tour.js"
   }
 }

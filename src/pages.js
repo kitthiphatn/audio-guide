@@ -74,5 +74,6 @@ export function indexPage(tours) {
 export const CODE_ERRORS = {
   unknown_code: 'รหัสไม่ถูกต้อง / Invalid code',
   code_expired: 'รหัสนี้หมดเวลาแล้ว / This code has expired',
+  code_revoked: 'รหัสนี้ถูกยกเลิกแล้ว กรุณาติดต่อเจ้าหน้าที่ / This code has been cancelled, please contact staff',
   code_device_limit: 'รหัสนี้ถูกใช้ครบจำนวนเครื่องแล้ว / This code is already used on the maximum number of devices',
 };

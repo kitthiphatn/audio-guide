@@ -1,5 +1,5 @@
 (() => {
-  const { tour, expiresAt } = JSON.parse(document.getElementById('tour-data').textContent);
+  let { tour, expiresAt } = JSON.parse(document.getElementById('tour-data').textContent);
   const app = document.getElementById('app');
   const store = safeStorage();
   const posKey = `ag:${tour.slug}`;
@@ -294,7 +294,11 @@
     try {
       const res = await fetch(`/api/${tour.slug}/session`, { credentials: 'same-origin' });
       if (res.status === 401) return expire((await res.json()).redirect);
-      if (res.ok) serverOffset = (await res.json()).now - Date.now();
+      if (res.ok) {
+        const info = await res.json();
+        serverOffset = info.now - Date.now();
+        expiresAt = info.expiresAt; // staff may have extended the pass
+      }
     } catch {
       // Offline for a moment; the local countdown keeps running.
     }
@@ -411,7 +415,7 @@
   tick();
   setInterval(tick, 1000);
   heartbeat();
-  setInterval(heartbeat, 60_000);
+  setInterval(heartbeat, 20_000);
   if (window.L) initMap();
   else window.addEventListener('load', initMap);
 })();

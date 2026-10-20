@@ -8,26 +8,18 @@ import { Store } from './store.js';
 import { sign, verify } from './tokens.js';
 import { issueLink, checkLink, sendAudio } from './media.js';
 import { tourPage, codePage, messagePage, indexPage, CODE_ERRORS } from './pages.js';
+import { createAdmin } from './admin.js';
+import { parseCookies, clientIp, isHttps, readJsonBody, serveFile, send, html, json, redirect } from './http.js';
 
-const STATIC_TYPES = {
-  '.css': 'text/css; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon',
-};
-// Only these may be served from a tour folder; audio stays behind /media links.
+// Only images may be served from a tour folder; audio stays behind signed /media links.
 const TOUR_ASSET_EXT = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg']);
 
 const CSP = [
   "default-src 'self'",
   "script-src 'self' https://unpkg.com",
   "style-src 'self' 'unsafe-inline' https://unpkg.com",
-  "img-src 'self' data: https://*.tile.openstreetmap.org https://unpkg.com",
-  "media-src 'self'",
+  "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://unpkg.com",
+  "media-src 'self' blob:",
   "connect-src 'self'",
   "frame-ancestors 'none'",
 ].join('; ');
@@ -35,6 +27,7 @@ const CSP = [
 export function createApp(config = loadConfig()) {
   const tours = new TourRegistry(config.toursDir);
   const store = new Store(config.dataDir);
+  const handleAdmin = createAdmin({ config, store, tours });
 
   const cookieName = (slug) => `ag_${slug.replace(/-/g, '_')}`;
 
@@ -49,7 +42,8 @@ export function createApp(config = loadConfig()) {
     const maxAge = Math.max(0, Math.floor((session.expiresAt - Date.now()) / 1000));
     const secure = isHttps(req, config) ? '; Secure' : '';
     const value = sign({ sid: session.sid, slug: session.slug }, config.secret);
-    res.setHeader('Set-Cookie', `${cookieName(session.slug)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`);
+    // Kept for a week past expiry, so a returning visitor is recognised and redirected.
+    res.setHeader('Set-Cookie', `${cookieName(session.slug)}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge + 7 * 86400}${secure}`);
   }
 
   async function handle(req, res) {
@@ -62,8 +56,10 @@ export function createApp(config = loadConfig()) {
       return html(res, 200, indexPage(tours.list()));
     }
 
+    if (parts[0] === 'admin') return handleAdmin(req, res, parts, url);
+
     if (parts[0] === 'static' && parts.length === 2) {
-      return serveFile(res, path.join(config.publicDir, path.basename(parts[1])), STATIC_TYPES);
+      return serveFile(res, path.join(config.publicDir, path.basename(parts[1])));
     }
 
     if (req.method === 'GET' && parts[0] === 'expired' && parts.length === 1) {
@@ -82,21 +78,16 @@ export function createApp(config = loadConfig()) {
           return send(res, 404, 'Not found');
         }
         if (!TOUR_ASSET_EXT.has(path.extname(file).toLowerCase())) return send(res, 404, 'Not found');
-        return serveFile(res, file, STATIC_TYPES);
+        return serveFile(res, file);
       }
 
       const { session } = readSession(req, tour.slug);
       const code = (url.searchParams.get('code') || '').trim().toUpperCase();
 
-      if (store.isActive(session)) {
-        if (code) return redirect(res, `/t/${tour.slug}`);
-        store.touch(session);
-        return html(res, 200, tourPage(publicTour(tour), { expiresAt: session.expiresAt }));
-      }
-
-      if (tour.access.mode === 'code') {
-        if (!code) return html(res, 200, codePage(tour));
-        const result = store.redeemCode(tour, code, meta);
+      // A new QR code always wins over an old session in this browser.
+      if (code && !(store.isActive(session) && session.code === code)) {
+        if (tour.access.mode !== 'code') return redirect(res, `/t/${tour.slug}`);
+        const result = store.redeemPass(tour, code, meta);
         if (!result.ok) {
           store.log('code_rejected', { slug: tour.slug, code, reason: result.reason, ip: meta.ip });
           return html(res, 403, codePage(tour, { error: CODE_ERRORS[result.reason] }));
@@ -104,9 +95,16 @@ export function createApp(config = loadConfig()) {
         setSessionCookie(req, res, result.session);
         return redirect(res, `/t/${tour.slug}`);
       }
+      if (code) return redirect(res, `/t/${tour.slug}`);
 
-      // Open mode: a browser that already had a session for this tour does not get a new one.
+      if (store.isActive(session)) {
+        store.touch(session);
+        return html(res, 200, tourPage(publicTour(tour), { expiresAt: session.expiresAt }));
+      }
+
       if (session) return redirect(res, tour.access.expiredRedirect);
+      if (tour.access.mode === 'code') return html(res, 200, codePage(tour));
+
       const fresh = store.startSession(tour, meta);
       setSessionCookie(req, res, fresh);
       return html(res, 200, tourPage(publicTour(tour), { expiresAt: fresh.expiresAt }));
@@ -126,7 +124,7 @@ export function createApp(config = loadConfig()) {
       }
 
       if (req.method === 'POST' && parts[2] === 'play') {
-        const body = await readJsonBody(req);
+        const body = await readJsonBody(req, 4096);
         const stopIndex = Number(body?.stop);
         const lang = String(body?.lang || '');
         if (!Number.isInteger(stopIndex) || !tour.stops[stopIndex]?.audio[lang]) {
@@ -143,7 +141,7 @@ export function createApp(config = loadConfig()) {
         session.plays += 1;
         store.log('play', { slug: tour.slug, sid: session.sid, stop: stopIndex, lang });
         const link = issueLink({ session, tour, stopIndex, lang, secret: config.secret, seconds: config.mediaLinkSeconds });
-        return json(res, 200, { url: link });
+        return json(res, 200, { url: link, expiresAt: session.expiresAt });
       }
       return json(res, 404, { error: 'not_found' });
     }
@@ -157,11 +155,6 @@ export function createApp(config = loadConfig()) {
         return send(res, result.status, 'Not available');
       }
       return sendAudio(req, res, result.file);
-    }
-
-    if (req.method === 'GET' && parts[0] === 'admin' && parts[1] === 'stats') {
-      if (!config.adminKey || req.headers['x-admin-key'] !== config.adminKey) return json(res, 403, { error: 'forbidden' });
-      return json(res, 200, store.stats());
     }
 
     return send(res, 404, 'Not found');
@@ -182,17 +175,6 @@ export function createApp(config = loadConfig()) {
   return { server, store, tours };
 }
 
-// --- helpers --------------------------------------------------------------
-
-function parseCookies(header = '') {
-  const out = {};
-  for (const part of header.split(';')) {
-    const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
-  }
-  return out;
-}
-
 function safeDecode(s) {
   try {
     const d = decodeURIComponent(s);
@@ -202,69 +184,14 @@ function safeDecode(s) {
   }
 }
 
-function clientIp(req, config) {
-  if (config.trustProxy) {
-    const fwd = req.headers['x-forwarded-for'];
-    if (fwd) return String(fwd).split(',')[0].trim();
-  }
-  return req.socket.remoteAddress || '';
-}
-
-function isHttps(req, config) {
-  return Boolean(req.socket.encrypted) || (config.trustProxy && req.headers['x-forwarded-proto'] === 'https');
-}
-
-function readJsonBody(req, limit = 4096) {
-  return new Promise((resolve) => {
-    let size = 0;
-    const chunks = [];
-    req.on('data', (c) => {
-      size += c.length;
-      if (size > limit) req.destroy();
-      else chunks.push(c);
-    });
-    req.on('end', () => {
-      try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}'));
-      } catch {
-        resolve(null);
-      }
-    });
-    req.on('error', () => resolve(null));
-  });
-}
-
-function serveFile(res, file, types) {
-  const type = types[path.extname(file).toLowerCase()];
-  if (!type) return send(res, 404, 'Not found');
-  fs.stat(file, (err, stat) => {
-    if (err || !stat.isFile()) return send(res, 404, 'Not found');
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': stat.size, 'Cache-Control': 'public, max-age=3600' });
-    fs.createReadStream(file).pipe(res);
-  });
-}
-
-function send(res, status, text) {
-  res.writeHead(status, { 'Content-Type': 'text/plain; charset=utf-8' }).end(text);
-}
-
-function html(res, status, body) {
-  res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }).end(body);
-}
-
-function json(res, status, value) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }).end(JSON.stringify(value));
-}
-
-function redirect(res, location) {
-  res.writeHead(302, { Location: location, 'Cache-Control': 'no-store' }).end();
-}
-
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const config = loadConfig();
   const { server, store } = createApp(config);
   store.prune();
-  server.listen(config.port, () => console.log(`Audio guide running on http://localhost:${config.port}`));
+  server.listen(config.port, () => {
+    console.log(`Audio guide running on http://localhost:${config.port}`);
+    console.log(config.adminPassword ? `Dashboard: http://localhost:${config.port}/admin` : 'Dashboard disabled: set AG_ADMIN_PASSWORD in .env');
+  });
   const stop = () => {
     store.saveNow();
     process.exit(0);

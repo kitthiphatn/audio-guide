@@ -2,29 +2,35 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { newId } from './tokens.js';
 
-// Sessions, access codes and an append-only event log, kept as JSON files in data/.
+// Sessions, access passes and an append-only event log, kept as JSON files in data/.
 // Fine for a single server process; move to a database if you run several.
+//
+// A pass is one QR code / access code. Like a queue ticket in a restaurant: its timer
+// starts on first scan, it stops working when time is up or staff revoke it, and staff
+// can extend or reopen it. The pass owns the expiry; its sessions follow it.
+
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 export class Store {
   constructor(dataDir) {
     fs.mkdirSync(dataDir, { recursive: true });
     this.sessionsFile = path.join(dataDir, 'sessions.json');
-    this.codesFile = path.join(dataDir, 'codes.json');
+    this.passesFile = path.join(dataDir, 'passes.json');
     this.eventsFile = path.join(dataDir, 'events.jsonl');
     this.sessions = new Map(Object.entries(readJson(this.sessionsFile, {})));
-    this.codes = readJson(this.codesFile, {});
+    this.passes = new Map(Object.entries(readJson(this.passesFile, {})));
     this.saveTimer = null;
   }
 
   // --- sessions ---------------------------------------------------------
 
-  startSession(tour, { code = null, ip = '', ua = '' } = {}, now = Date.now()) {
+  startSession(tour, { code = null, ip = '', ua = '', expiresAt = null } = {}, now = Date.now()) {
     const session = {
       sid: newId(),
       slug: tour.slug,
       code,
       createdAt: now,
-      expiresAt: now + tour.access.sessionMinutes * 60_000,
+      expiresAt: expiresAt ?? now + tour.access.sessionMinutes * 60_000,
       lastSeenAt: now,
       ip,
       ua: ua.slice(0, 200),
@@ -50,7 +56,20 @@ export class Store {
     this.scheduleSave();
   }
 
-  // Counts audio fetches in the last minute, so bulk downloaders can be spotted.
+  endSession(sid, now = Date.now()) {
+    const s = this.sessions.get(sid);
+    if (!s) return false;
+    s.expiresAt = Math.min(s.expiresAt, now);
+    this.log('session_ended', { sid });
+    this.scheduleSave();
+    return true;
+  }
+
+  activeSessions(now = Date.now()) {
+    return [...this.sessions.values()].filter((s) => now < s.expiresAt);
+  }
+
+  // Counts distinct tracks fetched in the last minute, so bulk downloading can be limited.
   recordFetch(session, trackKey, now = Date.now()) {
     session.recentFetches = session.recentFetches.filter((f) => now - f.at < 60_000);
     if (!session.recentFetches.some((f) => f.key === trackKey)) {
@@ -60,45 +79,117 @@ export class Store {
     return session.recentFetches.length;
   }
 
-  // --- access codes -----------------------------------------------------
+  // --- passes (QR / access codes) ---------------------------------------
 
-  createCodes(slug, count, { devices = 2 } = {}) {
-    const bucket = (this.codes[slug] ||= {});
-    const created = [];
-    for (let i = 0; i < count; i++) {
-      const code = newId(6).replace(/[-_]/g, 'x').toUpperCase().slice(0, 8);
-      bucket[code] = { createdAt: Date.now(), devices, sids: [], firstUsedAt: null };
-      created.push(code);
-    }
+  createPass({ slug, minutes, devices = 1, note = '' }, now = Date.now()) {
+    let code;
+    do code = randomCode(8);
+    while (this.passes.has(code));
+    const pass = {
+      code,
+      slug,
+      note: String(note).slice(0, 120),
+      minutes: Number(minutes),
+      devices: Math.max(1, Number(devices) || 1),
+      createdAt: now,
+      firstUsedAt: null,
+      expiresAt: null,
+      revokedAt: null,
+      sids: [],
+    };
+    this.passes.set(code, pass);
+    this.log('pass_created', { code, slug, minutes: pass.minutes, devices: pass.devices });
     this.saveNow();
-    return created;
+    return pass;
   }
 
-  // A code starts its timer on first use and can be opened on a limited number of devices.
-  redeemCode(tour, code, meta, now = Date.now()) {
-    const entry = this.codes[tour.slug]?.[code];
-    if (!entry) return { ok: false, reason: 'unknown_code' };
-    if (entry.firstUsedAt && now >= entry.firstUsedAt + tour.access.sessionMinutes * 60_000) {
-      return { ok: false, reason: 'code_expired' };
+  getPass(code) {
+    return this.passes.get(code) || null;
+  }
+
+  passStatus(pass, now = Date.now()) {
+    if (pass.revokedAt) return 'revoked';
+    if (!pass.firstUsedAt) return 'unused';
+    if (now >= pass.expiresAt) return 'expired';
+    return 'active';
+  }
+
+  listPasses({ slug } = {}, now = Date.now()) {
+    return [...this.passes.values()]
+      .filter((p) => !slug || p.slug === slug)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .map((p) => ({ ...p, status: this.passStatus(p, now) }));
+  }
+
+  // First scan starts the timer. Later scans may join from other devices up to the limit.
+  redeemPass(tour, code, meta = {}, now = Date.now()) {
+    const pass = this.passes.get(code);
+    if (!pass || pass.slug !== tour.slug) return { ok: false, reason: 'unknown_code' };
+    const status = this.passStatus(pass, now);
+    if (status === 'revoked') return { ok: false, reason: 'code_revoked' };
+    if (status === 'expired') return { ok: false, reason: 'code_expired' };
+    if (pass.sids.length >= pass.devices) return { ok: false, reason: 'code_device_limit' };
+    if (!pass.firstUsedAt) {
+      pass.firstUsedAt = now;
+      pass.expiresAt = now + pass.minutes * 60_000;
     }
-    if (entry.sids.length >= entry.devices) return { ok: false, reason: 'code_device_limit' };
-    const session = this.startSession(tour, { ...meta, code }, now);
-    if (entry.firstUsedAt) session.expiresAt = entry.firstUsedAt + tour.access.sessionMinutes * 60_000;
-    else entry.firstUsedAt = now;
-    entry.sids.push(session.sid);
+    const session = this.startSession(tour, { ...meta, code, expiresAt: pass.expiresAt }, now);
+    pass.sids.push(session.sid);
     this.saveNow();
     return { ok: true, session };
+  }
+
+  // Adds time. An expired or revoked pass is reopened from now.
+  extendPass(code, minutes, now = Date.now()) {
+    const pass = this.passes.get(code);
+    if (!pass) return null;
+    const add = Number(minutes) * 60_000;
+    pass.revokedAt = null;
+    if (!pass.firstUsedAt) pass.minutes += Number(minutes);
+    else pass.expiresAt = Math.max(pass.expiresAt, now) + add;
+    this.syncSessions(pass);
+    this.log('pass_extended', { code, minutes: Number(minutes) });
+    this.saveNow();
+    return pass;
+  }
+
+  revokePass(code, now = Date.now()) {
+    const pass = this.passes.get(code);
+    if (!pass) return null;
+    pass.revokedAt = now;
+    for (const sid of pass.sids) {
+      const s = this.sessions.get(sid);
+      if (s) s.expiresAt = Math.min(s.expiresAt, now);
+    }
+    this.log('pass_revoked', { code });
+    this.saveNow();
+    return pass;
+  }
+
+  syncSessions(pass) {
+    for (const sid of pass.sids) {
+      const s = this.sessions.get(sid);
+      if (s) s.expiresAt = pass.expiresAt;
+    }
   }
 
   // --- stats and log ----------------------------------------------------
 
   stats(now = Date.now()) {
     const bySlug = {};
+    const row = (slug) => (bySlug[slug] ||= { sessions: 0, activeSessions: 0, plays: 0, passes: 0, activePasses: 0, unusedPasses: 0 });
     for (const s of this.sessions.values()) {
-      const row = (bySlug[s.slug] ||= { total: 0, active: 0, plays: 0 });
-      row.total += 1;
-      if (now < s.expiresAt) row.active += 1;
-      row.plays += s.plays;
+      const r = row(s.slug);
+      r.sessions += 1;
+      if (now < s.expiresAt) r.activeSessions += 1;
+      r.plays += s.plays;
+    }
+    for (const p of this.passes.values()) {
+      const r = row(p.slug);
+      r.passes += 1;
+      const st = this.passStatus(p, now);
+      if (st === 'active') r.activePasses += 1;
+      if (st === 'unused') r.unusedPasses += 1;
     }
     return bySlug;
   }
@@ -125,8 +216,14 @@ export class Store {
     clearTimeout(this.saveTimer);
     this.saveTimer = null;
     writeJson(this.sessionsFile, Object.fromEntries(this.sessions));
-    writeJson(this.codesFile, this.codes);
+    writeJson(this.passesFile, Object.fromEntries(this.passes));
   }
+}
+
+function randomCode(length) {
+  const bytes = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(bytes);
+  return [...bytes].map((b) => CODE_ALPHABET[b % CODE_ALPHABET.length]).join('');
 }
 
 function readJson(file, fallback) {
