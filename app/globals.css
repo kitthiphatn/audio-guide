@@ -1,0 +1,191 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/fraunces/index.css';
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource/ibm-plex-sans-thai/400.css';
+@import '@fontsource/ibm-plex-sans-thai/500.css';
+@import '@fontsource/ibm-plex-sans-thai/600.css';
+@import '@fontsource/noto-serif-thai/500.css';
+@import '@fontsource/noto-serif-thai/700.css';
+@import 'leaflet/dist/leaflet.css';
+
+/*
+ * Two surfaces, one family.
+ * Guide (visitors): read outdoors on a phone in bright sun, so a warm light "parchment"
+ * editorial page: serif display, lacquer-red accent from temple woodwork, gold for marks.
+ * Dashboard (staff): a counter tool, so minimal and monochrome with the same red for state.
+ * Colours are role tokens; each surface sets them on its root element.
+ */
+@theme {
+  --font-display: 'Fraunces Variable', 'Noto Serif Thai', Georgia, serif;
+  --font-sans: 'Inter Variable', 'IBM Plex Sans Thai', system-ui, sans-serif;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* inline: utilities use var(--ink) etc. directly, so each surface's values apply. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-mark: var(--mark);
+  --color-ok: var(--ok);
+  --color-danger: var(--danger);
+}
+
+.theme-guide {
+  --bg: #f4eee2;
+  --surface: #fbf7ee;
+  --ink: #1f1a14;
+  --muted: #62594d;
+  --line: rgb(31 26 20 / 0.13);
+  --accent: #9a2b1d;
+  --accent-ink: #fff8f0;
+  --mark: #a47522;
+  --ok: #3f6b3a;
+  --danger: #9a2b1d;
+}
+
+.theme-admin {
+  --bg: #f7f7f6;
+  --surface: #ffffff;
+  --ink: #141413;
+  --muted: #5f5f5c;
+  --line: #e4e3e0;
+  --accent: #141413;
+  --accent-ink: #ffffff;
+  --mark: #9a2b1d;
+  --ok: #2f6b3a;
+  --danger: #b42318;
+}
+
+@media (prefers-color-scheme: dark) {
+  .theme-admin {
+    --bg: #0f0f0e;
+    --surface: #171716;
+    --ink: #f2f1ee;
+    --muted: #a3a29d;
+    --line: #2a2a28;
+    --accent: #f2f1ee;
+    --accent-ink: #141413;
+    --mark: #e0796a;
+    --ok: #7fbf86;
+    --danger: #f2877a;
+  }
+  .theme-guide:not([data-theme='light']) {
+    --bg: #15120e;
+    --surface: #1d1914;
+    --ink: #f2ebdd;
+    --muted: #b3a894;
+    --line: rgb(242 235 221 / 0.12);
+    --accent: #e0796a;
+    --accent-ink: #1d1410;
+    --mark: #d8ad5b;
+    --ok: #9cc58f;
+    --danger: #e0796a;
+  }
+}
+.theme-guide[data-theme='dark'] {
+  --bg: #15120e;
+  --surface: #1d1914;
+  --ink: #f2ebdd;
+  --muted: #b3a894;
+  --line: rgb(242 235 221 / 0.12);
+  --accent: #e0796a;
+  --accent-ink: #1d1410;
+  --mark: #d8ad5b;
+  --ok: #9cc58f;
+  --danger: #e0796a;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv11', 'ss01';
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--mark) 35%, transparent);
+    color: var(--ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--mark);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  input,
+  textarea,
+  select {
+    caret-color: var(--mark);
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  * {
+    scrollbar-color: color-mix(in oklab, var(--ink) 25%, transparent) transparent;
+  }
+  [hidden] {
+    display: none !important;
+  }
+}
+
+/* Shared controls. Declared as utilities so size utilities like px-2.5 can override them. */
+@utility field {
+  @apply w-full rounded-md border border-line bg-surface px-3 py-2 text-[15px] text-ink placeholder:text-muted/80 transition-colors focus:border-ink focus:outline-none;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-line bg-surface px-3.5 py-2 text-sm font-medium text-ink transition-colors hover:bg-bg disabled:cursor-not-allowed disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn border-accent bg-accent text-accent-ink hover:bg-accent hover:opacity-90;
+}
+@utility btn-danger {
+  @apply btn text-danger;
+}
+@utility label {
+  @apply mb-1 block text-[13px] font-medium text-muted;
+}
+
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: var(--bg);
+}
+.leaflet-tooltip.stop-label {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body,
+  .theme-admin {
+    background: #fff !important;
+  }
+  .print-sheet {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6mm !important;
+  }
+  .print-sheet article {
+    border: 1px dashed #999 !important;
+  }
+}
