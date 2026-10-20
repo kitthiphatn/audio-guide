@@ -34,7 +34,7 @@ export default function TourMap({ stops, current, onSelect, locateLabel }: { sto
       for (const s of points) {
         const icon = L.divIcon({
           className: '',
-          html: `<span class="grid size-8 place-items-center rounded-full border-2 border-[var(--surface)] bg-[var(--accent)] font-semibold text-[13px] text-[var(--accent-ink)] shadow-md">${s.i + 1}</span>`,
+          html: `<span class="grid size-8 place-items-center rounded-full border-[2.5px] border-white bg-[var(--accent)] font-semibold text-[13px] text-white shadow-[0_4px_12px_rgb(0_0_0/0.3)]">${s.i + 1}</span>`,
           iconSize: [32, 32],
           iconAnchor: [16, 16],
         });
@@ -86,8 +86,8 @@ export default function TourMap({ stops, current, onSelect, locateLabel }: { sto
 
   return (
     <div className="mt-4">
-      <div ref={box} className="relative z-0 h-80 overflow-hidden rounded-lg border border-line" />
-      <button onClick={locate} disabled={!ready} className="btn mt-3 w-full">
+      <div ref={box} className="card relative z-0 h-80 overflow-hidden sm:h-96" />
+      <button onClick={locate} disabled={!ready} className="btn mt-3 w-full py-3 text-[15px]">
         <LocateFixed className="size-4" strokeWidth={1.75} />
         {locateLabel}
       </button>

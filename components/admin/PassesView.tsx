@@ -111,7 +111,7 @@ export default function PassesView({ initialSlug }: { initialSlug: string }) {
         <ErrorNote>{error}</ErrorNote>
 
         {tour && (
-          <form onSubmit={issue} className="flex flex-wrap items-end gap-4 rounded-lg border border-line bg-surface p-5">
+          <form onSubmit={issue} className="flex flex-wrap items-end gap-4 card p-6">
             <div>
               <label htmlFor="minutes" className="label">
                 ใช้ได้ (นาที)
@@ -185,7 +185,7 @@ export default function PassesView({ initialSlug }: { initialSlug: string }) {
           </div>
           <div className="print-sheet grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {printed.map((p) => (
-              <article key={p.code} className="break-inside-avoid rounded-lg border border-line bg-white p-4 text-center text-[#141413]">
+              <article key={p.code} className="break-inside-avoid rounded-2xl bg-white p-4 shadow-[0_1px_2px_rgb(0_0_0/0.06),0_0_0_1px_rgb(0_0_0/0.06)] text-center text-[#141413]">
                 <div className="mx-auto w-full max-w-44 [&_svg]:h-auto [&_svg]:w-full" dangerouslySetInnerHTML={{ __html: p.svg }} />
                 <p className="mt-2 font-mono text-lg font-semibold tracking-[0.18em]">{p.code}</p>
                 <p className="mt-1 text-sm font-medium">{title || p.slug}</p>

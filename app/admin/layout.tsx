@@ -13,10 +13,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="theme-admin min-h-dvh bg-bg text-[15px] text-ink">
       {signedIn ? (
-        <>
+        <div className="lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
           <AdminNav />
-          <main className="mx-auto max-w-6xl px-4 pt-8 pb-24 sm:px-6">{children}</main>
-        </>
+          <main className="mx-auto w-full max-w-6xl px-4 pt-8 pb-28 sm:px-8 lg:pt-14">{children}</main>
+        </div>
       ) : (
         <LoginForm configured={Boolean(app.config.adminPassword)} />
       )}

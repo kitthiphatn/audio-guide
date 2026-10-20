@@ -68,7 +68,7 @@ export default function ToursView() {
         </Section>
 
         <Section title="สร้างทัวร์ใหม่">
-          <form onSubmit={create} className="space-y-4 rounded-lg border border-line bg-surface p-5">
+          <form onSubmit={create} className="space-y-4 card p-6">
             <div>
               <label htmlFor="slug" className="label">
                 ชื่อในลิงก์

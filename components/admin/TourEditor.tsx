@@ -165,7 +165,7 @@ export default function TourEditor({ slug }: { slug: string }) {
       </PageHeader>
 
       <Section title="ชื่อและภาษา">
-        <div className="space-y-4 rounded-lg border border-line bg-surface p-5">
+        <div className="space-y-4 card p-6">
           {langs.map((l) => (
             <div key={l} className="grid gap-3 sm:grid-cols-[6rem_1fr_1fr] sm:items-start">
               <div className="pt-2">
@@ -256,7 +256,7 @@ export default function TourEditor({ slug }: { slug: string }) {
       </Section>
 
       <Section title="การเข้าใช้">
-        <div className="grid gap-4 rounded-lg border border-line bg-surface p-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 card p-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <label htmlFor="mode" className="label">
               วิธีเข้า
@@ -312,7 +312,7 @@ export default function TourEditor({ slug }: { slug: string }) {
       </Section>
 
       <Section title="หน้าตา">
-        <div className="space-y-5 rounded-lg border border-line bg-surface p-5">
+        <div className="space-y-5 card p-6">
           <div className="flex flex-wrap items-center gap-6">
             <label className="inline-flex items-center gap-2">
               <input
@@ -332,7 +332,7 @@ export default function TourEditor({ slug }: { slug: string }) {
             <span className="label">รูปหน้าปก</span>
             <div className="flex flex-wrap gap-3">
               {(raw.heroImages || []).map((img, i) => (
-                <figure key={img} className="group relative h-28 w-40 overflow-hidden rounded-md border border-line bg-bg">
+                <figure key={img} className="group relative h-28 w-40 overflow-hidden rounded-2xl bg-bg">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={`/t/${slug}/${img}`} alt="" className="h-full w-full object-cover" />
                   <button
@@ -345,7 +345,7 @@ export default function TourEditor({ slug }: { slug: string }) {
                   </button>
                 </figure>
               ))}
-              <label className="grid h-28 w-40 cursor-pointer place-items-center rounded-md border border-dashed border-line text-sm text-muted hover:border-ink hover:text-ink">
+              <label className="grid h-28 w-40 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-line text-sm text-muted hover:border-ink hover:text-ink">
                 <span className="inline-flex flex-col items-center gap-1">
                   <ImagePlus className="size-5" strokeWidth={1.5} />
                   เพิ่มรูป
@@ -389,7 +389,7 @@ export default function TourEditor({ slug }: { slug: string }) {
       >
         <ol className="space-y-4">
           {raw.stops.map((stop, i) => (
-            <li key={`${stop.id}-${i}`} className="rounded-lg border border-line bg-surface">
+            <li key={`${stop.id}-${i}`} className="card">
               <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3">
                 <span className="grid size-7 place-items-center rounded-full bg-ink text-xs font-semibold text-bg tabular-nums">{i + 1}</span>
                 <span className="font-medium">{pick(asText(stop.title), main) || 'ไม่มีชื่อ'}</span>
@@ -522,7 +522,7 @@ export default function TourEditor({ slug }: { slug: string }) {
       </Section>
 
       <Section title="ไฟล์ในทัวร์">
-        <ul className="divide-y divide-line rounded-lg border border-line bg-surface text-sm">
+        <ul className="divide-y divide-line card text-sm">
           {media.length === 0 && <li className="px-4 py-6 text-center text-muted">ยังไม่มีไฟล์</li>}
           {[...media]
             .sort((a, b) => a.path.localeCompare(b.path))
@@ -545,7 +545,7 @@ export default function TourEditor({ slug }: { slug: string }) {
 
       <Section title="แก้ไข tour.json โดยตรง">
         <details
-          className="rounded-lg border border-line bg-surface"
+          className="card"
           onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && setJson(JSON.stringify(raw, null, 2))}
         >
           <summary className="cursor-pointer px-5 py-3 text-muted">สำหรับคนที่คุ้นกับ JSON</summary>
@@ -574,14 +574,13 @@ export default function TourEditor({ slug }: { slug: string }) {
         </details>
       </Section>
 
-      <div className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6">
-          <span className={`text-sm ${dirty ? 'font-medium text-ink' : 'text-muted'}`} aria-live="polite">
+      <div className="no-print pointer-events-none fixed inset-x-0 bottom-0 z-20 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:left-[248px]">
+        <div className="glass pointer-events-auto mx-auto flex max-w-3xl items-center gap-2 rounded-full py-2 pr-2 pl-5 shadow-[var(--shadow-float)]">
+          <span className={`min-w-0 flex-1 truncate text-sm ${dirty ? 'font-medium text-ink' : 'text-muted'}`} aria-live="polite">
             {error ? <span className="text-danger">{error}</span> : dirty ? 'มีการแก้ไขที่ยังไม่บันทึก' : saved || 'บันทึกครบแล้ว'}
           </span>
-          <span className="flex-1" />
           <button className="btn" disabled={!dirty || busy} onClick={() => load()}>
-            ยกเลิกการแก้ไข
+            ยกเลิก
           </button>
           <button className="btn-primary" disabled={!dirty || busy} onClick={() => save()}>
             {busy ? 'กำลังบันทึก…' : 'บันทึก'}

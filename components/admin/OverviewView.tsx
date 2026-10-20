@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { pick } from '@/lib/text';
 import { api, fmtLeft, fmtWhen, type Overview } from './api';
-import { PageHeader, Section, Table, Td, ErrorNote } from './ui';
+import { PageHeader, Section, Stat, Table, Td, ErrorNote } from './ui';
 
 export default function OverviewView() {
   const [data, setData] = useState<Overview | null>(null);
@@ -18,18 +18,23 @@ export default function OverviewView() {
   }, [load]);
 
   const act = (p: Promise<unknown>) => p.then(load, (e) => setError(e.message));
-  const listening = data?.tours.reduce((n, t) => n + t.stats.activeSessions, 0) ?? 0;
+  const sum = (k: keyof Overview['tours'][number]['stats']) => data?.tours.reduce((n, t) => n + t.stats[k], 0) ?? 0;
+  const listening = sum('activeSessions');
 
   return (
     <>
       <PageHeader title="ภาพรวม">
-        <p className="text-muted">
-          ตอนนี้มีคนฟังอยู่ <strong className="text-ink tabular-nums">{listening}</strong> คน · อัปเดตทุก 10 วินาที
-        </p>
+        <p className="text-sm text-muted">อัปเดตทุก 10 วินาที</p>
       </PageHeader>
+      <div className="mb-12 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label="กำลังฟังอยู่" value={listening} live={listening > 0} />
+        <Stat label="QR ที่กำลังใช้" value={sum('activePasses')} />
+        <Stat label="QR ยังไม่ใช้" value={sum('unusedPasses')} />
+        <Stat label="ครั้งที่เล่นทั้งหมด" value={sum('plays')} />
+      </div>
       <ErrorNote>{error}</ErrorNote>
       {data?.loadErrors.length ? (
-        <p className="mb-6 rounded-md border border-danger/30 bg-danger/5 p-3 text-sm text-danger">ทัวร์ที่โหลดไม่ได้: {data.loadErrors.join(' · ')}</p>
+        <p className="mb-6 rounded-2xl bg-danger/10 p-4 text-sm text-danger">ทัวร์ที่โหลดไม่ได้: {data.loadErrors.join(' · ')}</p>
       ) : null}
 
       <Section title="ทัวร์">
