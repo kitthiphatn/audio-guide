@@ -1,0 +1,9 @@
+node_modules/
+data/
+.env
+*.log
+# Your recordings stay out of git unless you remove this line
+tours/*/audio/**/*.mp3
+tours/*/audio/**/*.m4a
+tours/*/audio/**/*.wav
+tours/*/audio/**/*.ogg

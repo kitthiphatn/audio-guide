@@ -1,0 +1,17 @@
+{
+  "name": "audio-guide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tour web audio guide with time-limited sessions and session-bound audio links",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "test": "node --test test/*.test.js",
+    "new-tour": "node scripts/new-tour.js",
+    "codes": "node scripts/codes.js"
+  }
+}

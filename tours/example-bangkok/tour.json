@@ -1,0 +1,51 @@
+{
+  "title": { "th": "ตัวอย่าง: เดินเที่ยวเกาะรัตนโกสินทร์", "en": "Example: Rattanakosin Walk" },
+  "subtitle": { "th": "แก้ไฟล์นี้แล้วใส่เสียงของคุณเอง", "en": "Edit this file and add your own audio" },
+  "defaultLanguage": "th",
+  "languages": {
+    "th": { "label": "ไทย" },
+    "en": { "label": "English" }
+  },
+  "access": {
+    "mode": "open",
+    "sessionMinutes": 180,
+    "expiredRedirect": "/expired",
+    "maxTracksPerMinute": 8
+  },
+  "heroImages": [],
+  "links": [],
+  "stops": [
+    {
+      "id": "start",
+      "title": { "th": "จุดเริ่มต้น", "en": "Starting point" },
+      "transcript": { "th": "", "en": "" },
+      "lat": 13.7522,
+      "lng": 100.4892,
+      "audio": { "th": "audio/th/01.mp3", "en": "audio/en/01.mp3" }
+    },
+    {
+      "id": "grand-palace",
+      "title": { "th": "พระบรมมหาราชวัง", "en": "Grand Palace" },
+      "transcript": { "th": "", "en": "" },
+      "lat": 13.7500,
+      "lng": 100.4913,
+      "audio": { "th": "audio/th/02.mp3", "en": "audio/en/02.mp3" }
+    },
+    {
+      "id": "wat-pho",
+      "title": { "th": "วัดโพธิ์", "en": "Wat Pho" },
+      "transcript": { "th": "", "en": "" },
+      "lat": 13.7465,
+      "lng": 100.4927,
+      "audio": { "th": "audio/th/03.mp3", "en": "audio/en/03.mp3" }
+    },
+    {
+      "id": "wat-arun",
+      "title": { "th": "วัดอรุณราชวราราม", "en": "Wat Arun" },
+      "transcript": { "th": "", "en": "" },
+      "lat": 13.7437,
+      "lng": 100.4888,
+      "audio": { "th": "audio/th/04.mp3", "en": "audio/en/04.mp3" }
+    }
+  ]
+}
